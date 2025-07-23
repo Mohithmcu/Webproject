@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hospital Admin Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      background-color: #f0f4f8;
+    }
+    .header {
+      background-color: #0d6efd;
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+      border-radius: 0 0 10px 10px;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .card {
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.05);
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background: white;
+    }
+    h4 {
+      color: #0d6efd;
+    }
+    .btn-primary, .btn-success, .btn-outline-secondary {
+      border-radius: 5px;
+    }
+    .list-group-item {
+      border-radius: 5px;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    if (!localStorage.getItem('token')) {
+      window.location.href = '/login.html';
+    }
+  </script>
+
+  <div class="header">
+    <h1>🏥 Hospital Admin Dashboard</h1>
+    <p>Manage departments, staff, and appointments efficiently</p>
+  </div>
+
+  <div class="container">
+
+    <!-- Department Section -->
+    <div class="card">
+      <h4>Create Department</h4>
+      <input id="deptName" class="form-control mb-2" placeholder="Department Name">
+      <input id="deptDesc" class="form-control mb-3" placeholder="Description">
+      <button class="btn btn-primary w-100 mb-3" onclick="createDepartment()">Create Department</button>
+      <h5>Departments</h5>
+      <ul id="departmentList" class="list-group"></ul>
+      <button class="btn btn-outline-secondary mt-2 w-100" onclick="loadDepartments()">Refresh Departments</button>
+    </div>
+
+    <!-- Employee Section -->
+    <div class="card">
+      <h4>Create Employee</h4>
+      <input id="empFirst" class="form-control mb-2" placeholder="First Name">
+      <input id="empLast" class="form-control mb-2" placeholder="Last Name">
+      <input id="empDob" class="form-control mb-2" type="date">
+      <input id="empPos" class="form-control mb-2" placeholder="Position (e.g., Doctor, Nurse)">
+      <select id="empDept" class="form-control mb-3">
+        <option value="">Select Department</option>
+      </select>
+      <button class="btn btn-success w-100 mb-3" onclick="createEmployee()">Create Employee</button>
+      <h5>Employees</h5>
+      <ul id="employeeList" class="list-group"></ul>
+      <button class="btn btn-outline-secondary mt-2 w-100" onclick="loadEmployees()">Refresh Employees</button>
+    </div>
+
+    <!-- Appointment Section -->
+    <div class="card">
+      <h4>Schedule Appointment</h4>
+      <input id="apptPatient" class="form-control mb-2" placeholder="Patient Name">
+      <input id="apptDate" class="form-control mb-2" type="datetime-local">
+      <select id="apptEmp" class="form-control mb-3">
+        <option value="">Select Doctor/Staff</option>
+      </select>
+      <button class="btn btn-primary w-100 mb-3" onclick="createAppointment()">Schedule Appointment</button>
+      <h5>Appointments</h5>
+      <ul id="appointmentList" class="list-group"></ul>
+      <button class="btn btn-outline-secondary mt-2 w-100" onclick="loadAppointments()">Refresh Appointments</button>
+    </div>
+
+  </div>
+
+  <script>
+    const API = '/api';
+
+    async function createDepartment() {
+      const name = document.getElementById('deptName').value;
+      const description = document.getElementById('deptDesc').value;
+      const res = await fetch(`${API}/departments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ name, description })
+      });
+      await res.json();
+      alert('✅ Department created');
+      loadDepartments();
+      populateDeptDropdown();
+    }
+
+    async function loadDepartments() {
+      const res = await fetch(`${API}/departments`);
+      const depts = await res.json();
+      const list = document.getElementById('departmentList');
+      list.innerHTML = '';
+      depts.forEach(d => {
+        const item = document.createElement('li');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+        item.innerHTML = `
+          ${d.name} - ${d.description}
+          <button class="btn btn-sm btn-danger" onclick="deleteDepartment('${d._id}')">🗑️</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    async function deleteDepartment(id) {
+      if (confirm("Delete this department?")) {
+        await fetch(`${API}/departments/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        loadDepartments();
+        populateDeptDropdown();
+        alert("❌ Department deleted");
+      }
+    }
+
+    async function populateDeptDropdown() {
+      const res = await fetch(`${API}/departments`);
+      const depts = await res.json();
+      const select = document.getElementById('empDept');
+      select.innerHTML = '<option value="">Select Department</option>';
+      depts.forEach(d => {
+        const option = document.createElement('option');
+        option.value = d._id;
+        option.innerText = d.name;
+        select.appendChild(option);
+      });
+    }
+
+    async function createEmployee() {
+      const firstName = document.getElementById('empFirst').value;
+      const lastName = document.getElementById('empLast').value;
+      const dateOfBirth = document.getElementById('empDob').value;
+      const position = document.getElementById('empPos').value;
+      const department = document.getElementById('empDept').value;
+
+      const res = await fetch(`${API}/employees`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ firstName, lastName, dateOfBirth, position, department })
+      });
+      await res.json();
+      alert('✅ Employee created');
+      loadEmployees();
+      populateEmployeeDropdown();
+    }
+
+    async function loadEmployees() {
+      const res = await fetch(`${API}/employees`);
+      const emps = await res.json();
+      const list = document.getElementById('employeeList');
+      list.innerHTML = '';
+      emps.forEach(e => {
+        const item = document.createElement('li');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+        item.innerHTML = `
+          ${e.firstName} ${e.lastName} - ${e.position} (${e.department?.name || 'No Dept'})
+          <button class="btn btn-sm btn-danger" onclick="deleteEmployee('${e._id}')">🗑️</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    async function deleteEmployee(id) {
+      if (confirm("Are you sure you want to delete this employee?")) {
+        await fetch(`${API}/employees/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        loadEmployees();
+        populateEmployeeDropdown();
+        alert("❌ Employee deleted");
+      }
+    }
+
+    async function populateEmployeeDropdown() {
+      const res = await fetch(`${API}/employees`);
+      const emps = await res.json();
+      const select = document.getElementById('apptEmp');
+      select.innerHTML = '<option value="">Select Doctor/Staff</option>';
+      emps.forEach(emp => {
+        const option = document.createElement('option');
+        option.value = emp._id;
+        option.innerText = `${emp.firstName} ${emp.lastName} (${emp.position})`;
+        select.appendChild(option);
+      });
+    }
+
+    async function createAppointment() {
+      const patientName = document.getElementById('apptPatient').value;
+      const date = document.getElementById('apptDate').value;
+      const employee = document.getElementById('apptEmp').value;
+
+      const res = await fetch(`${API}/appointments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: JSON.stringify({ patientName, date, employee })
+      });
+      await res.json();
+      alert("✅ Appointment created");
+      loadAppointments();
+    }
+
+    async function loadAppointments() {
+      const res = await fetch(`${API}/appointments`);
+      const appts = await res.json();
+      const list = document.getElementById('appointmentList');
+      list.innerHTML = '';
+      appts.forEach(a => {
+        const item = document.createElement('li');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+        item.innerHTML = `
+          ${a.patientName} - ${new Date(a.date).toLocaleString()} with ${a.employee?.firstName || 'N/A'} ${a.employee?.lastName || ''}
+          <button class="btn btn-sm btn-danger" onclick="deleteAppointment('${a._id}')">🗑️</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    async function deleteAppointment(id) {
+      if (confirm("Delete this appointment?")) {
+        await fetch(`${API}/appointments/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        loadAppointments();
+        alert("❌ Appointment deleted");
+      }
+    }
+
+    loadDepartments();
+    populateDeptDropdown();
+    loadEmployees();
+    populateEmployeeDropdown();
+    loadAppointments();
+  </script>
+</body>
+</html>
